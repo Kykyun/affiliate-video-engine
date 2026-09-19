@@ -1,0 +1,23 @@
+{
+  "product_name": "Rotating Kitchen Organizer",
+  "category": "Home & Living",
+  "price_myr": 18.90,
+  "original_price_myr": 29.90,
+  "commission_percent": 12,
+  "product_description": "360-degree rotating organizer for sauces, bottles and kitchen items.",
+  "features": [
+    "360-degree rotation",
+    "compact",
+    "easy access",
+    "fits kitchen counter"
+  ],
+  "verified_claims": [
+    "rotates 360 degrees",
+    "can hold bottles and containers"
+  ],
+  "product_image_urls": [],
+  "target_market": "Malaysia",
+  "language": "casual Bahasa Melayu",
+  "preferred_audience": "",
+  "preferred_emotion": ""
+}

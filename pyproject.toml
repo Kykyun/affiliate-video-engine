@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "affiliate-video-engine"
+version = "1.0.0"
+description = "MY Affiliate Video Engine V1 — product JSON to TikTok affiliate video plan (+ Veo/TTS/stitch)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "google-genai>=1.0.0",
+  "pydantic>=2.0",
+  "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+affiliate-engine = "affiliate_engine.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["affiliate_engine*"]
