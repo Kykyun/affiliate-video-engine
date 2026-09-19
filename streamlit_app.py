@@ -56,6 +56,7 @@ def _init_state() -> None:
     st.session_state.setdefault("model_id", None)
     st.session_state.setdefault("final_video", None)
     st.session_state.setdefault("video_confirm", False)
+    st.session_state.setdefault("flash", None)
 
 
 def _clear_results() -> None:
@@ -65,6 +66,25 @@ def _clear_results() -> None:
     st.session_state.model_id = None
     st.session_state.final_video = None
     st.session_state.video_confirm = False
+    st.session_state.flash = None
+
+
+def _flash(kind: str, message: str) -> None:
+    st.session_state.flash = (kind, message)
+
+
+def _paint_flash(slot) -> None:
+    flash = st.session_state.get("flash")
+    if not flash:
+        slot.empty()
+        return
+    kind, message = flash
+    if kind == "error":
+        slot.error(message)
+    elif kind == "warning":
+        slot.warning(message)
+    else:
+        slot.success(message)
 
 
 def _apply_sample() -> None:
@@ -112,8 +132,8 @@ def _render_key_banner() -> bool:
         "Salin fail contoh, letak key, kemudian restart app ini."
     )
     st.markdown(
-        f"Template: [`.env.example`]({ENV_EXAMPLE_URL}) "
-        f"(local path `{ENV_EXAMPLE_PATH}`)."
+        "Template: [`.env.example`](%s) dalam folder projek ini."
+        % ENV_EXAMPLE_URL
     )
     if ENV_EXAMPLE_PATH.exists():
         with st.expander("Tengok isi `.env.example`"):
@@ -121,7 +141,7 @@ def _render_key_banner() -> bool:
     return False
 
 
-def _render_form() -> None:
+def _render_form() -> bool:
     st.subheader("1. Maklumat produk")
     st.caption("Isi macam borang biasa. Satu baris = satu item untuk senarai.")
 
@@ -195,7 +215,7 @@ def _render_form() -> None:
         st.text_input(
             "Emosi pilihan / Preferred emotion — optional",
             key="f_preferred_emotion",
-            placeholder="Kosong = Gemini pilih  (contoh: relief, convenience)",
+            placeholder="Kosong = Gemini pilih",
         )
         submitted = st.form_submit_button(
             "Buat plan / Make plan",
@@ -203,8 +223,7 @@ def _render_form() -> None:
             use_container_width=True,
         )
 
-    if submitted:
-        _run_plan()
+    return bool(submitted)
 
 
 def _run_plan() -> None:
@@ -212,12 +231,12 @@ def _run_plan() -> None:
     try:
         product = _current_product()
     except ValueError as exc:
-        st.error(safe_error_message(exc))
+        _flash("error", safe_error_message(exc))
         return
     if not api_key_configured():
-        st.error(
-            "Set GEMINI_API_KEY in `.env` dulu. "
-            f"See [`.env.example`]({ENV_EXAMPLE_URL})."
+        _flash(
+            "error",
+            "Set GEMINI_API_KEY in `.env` dulu. See `.env.example`.",
         )
         return
 
@@ -232,10 +251,12 @@ def _run_plan() -> None:
         st.session_state.run_dir = str(run_dir)
         st.session_state.model_id = model_id
         status.update(label="Plan ready", state="complete")
+        _flash("success", "Plan ready. Scroll turun untuk semak hook, 3 shots, dan compliance.")
     except Exception as exc:  # noqa: BLE001 — show a friendly UI error
         status.update(label="Planning failed", state="error")
-        status.write(safe_error_message(exc))
-        st.error(safe_error_message(exc))
+        msg = safe_error_message(exc)
+        status.write(msg)
+        _flash("error", msg)
 
 
 def _render_plan(plan: VideoPlan) -> None:
@@ -360,9 +381,9 @@ def _render_video_section(plan: VideoPlan) -> None:
 
 def _run_video(plan: VideoPlan) -> None:
     if not api_key_configured():
-        st.error(
-            "Set GEMINI_API_KEY in `.env` dulu. "
-            f"See [`.env.example`]({ENV_EXAMPLE_URL})."
+        _flash(
+            "error",
+            "Set GEMINI_API_KEY in `.env` dulu. See `.env.example`.",
         )
         return
     product = ProductInput.model_validate(st.session_state.product_dict)
@@ -375,10 +396,12 @@ def _run_video(plan: VideoPlan) -> None:
         final = generate_video(product, plan, run_dir, on_progress=on_progress)
         st.session_state.final_video = str(final)
         status.update(label="Video ready", state="complete")
+        _flash("success", "Video ready. Semak final_video.mp4 dan REVIEW checklist sebelum post.")
     except Exception as exc:  # noqa: BLE001
         status.update(label="Video generation failed", state="error")
-        status.write(safe_error_message(exc))
-        st.error(safe_error_message(exc))
+        msg = safe_error_message(exc)
+        status.write(msg)
+        _flash("error", msg)
 
 
 def main() -> None:
@@ -386,6 +409,11 @@ def main() -> None:
         page_title="AFFILIATE-OS · MY Affiliate Video Engine",
         page_icon="🎬",
         layout="centered",
+        menu_items={
+            "Get Help": None,
+            "Report a bug": None,
+            "About": "AFFILIATE-OS — MY Affiliate Video Engine. Review dulu, post sendiri.",
+        },
     )
     st.markdown(
         """
@@ -397,6 +425,11 @@ def main() -> None:
             border: none;
             padding-left: 0;
             padding-right: 0;
+        }
+        [data-testid="stToolbar"], [data-testid="stDecoration"],
+        [data-testid="stStatusWidget"], #MainMenu, footer, header {
+            visibility: hidden;
+            height: 0;
         }
         </style>
         """,
@@ -411,8 +444,13 @@ def main() -> None:
         "Anda review dan post sendiri. Tiada auto-post ke TikTok."
     )
     _render_key_banner()
+    flash_box = st.empty()
+    _paint_flash(flash_box)
     st.markdown("---")
-    _render_form()
+    submitted = _render_form()
+    if submitted:
+        _run_plan()
+        _paint_flash(flash_box)
 
     plan_dict = st.session_state.get("plan_dict")
     if plan_dict:
@@ -426,6 +464,7 @@ def main() -> None:
             "Generate video (Veo + TTS) akan aktif selepas ada plan. "
             "Buat plan dulu — ia lebih murah dan cepat untuk disemak."
         )
+    _paint_flash(flash_box)
 
 
 main()
