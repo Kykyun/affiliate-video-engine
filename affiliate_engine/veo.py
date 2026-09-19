@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import Callable, List, Optional, Sequence
 from urllib.request import urlopen
 
 from google.genai import types
@@ -56,6 +56,7 @@ def generate_scenes(
     product_image_urls: Sequence[str] | None = None,
     poll_seconds: float = 15.0,
     max_wait_seconds: float = 600.0,
+    on_progress: Callable[[str], None] | None = None,
 ) -> List[Path]:
     """Generate scene_1.mp4 … scene_N.mp4 via Veo. Returns paths."""
     settings = settings or Settings.from_env()
@@ -64,9 +65,13 @@ def generate_scenes(
 
     refs = _load_reference_images(product_image_urls or [])
     paths: List[Path] = []
+    total = len(plan.shots)
 
     for shot in plan.shots:
         out = run_dir / f"scene_{shot.shot_number}.mp4"
+        msg = f"Rendering scene {shot.shot_number}/{total}…"
+        if on_progress:
+            on_progress(msg)
         print(f"[veo] Generating scene {shot.shot_number} ({settings.veo_model})…")
         config_kwargs: dict = {
             "aspect_ratio": "9:16",
