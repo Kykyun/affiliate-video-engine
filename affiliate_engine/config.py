@@ -29,7 +29,7 @@ class Settings:
 
     @classmethod
     def from_env(cls, *, require_api_key: bool = True) -> "Settings":
-        key = (os.environ.get("GEMINI_API_KEY") or "").strip()
+        key = _read_api_key()
         if require_api_key and not key:
             raise RuntimeError(
                 "GEMINI_API_KEY is not set. Export it before running the planner/Veo/TTS. "
@@ -43,6 +43,17 @@ class Settings:
             tts_voice=os.environ.get("GEMINI_TTS_VOICE", DEFAULT_TTS_VOICE).strip(),
             output_dir=Path(os.environ.get("AFFILIATE_OUTPUT_DIR", DEFAULT_OUTPUT_DIR)).resolve(),
         )
+
+
+def _read_api_key() -> str:
+    """Return the configured key (never log this). Reloads `.env` if present."""
+    load_dotenv()
+    return (os.environ.get("GEMINI_API_KEY") or "").strip()
+
+
+def api_key_configured() -> bool:
+    """True when GEMINI_API_KEY is set. Does not return or print the key."""
+    return bool(_read_api_key())
 
 
 def get_client(settings: Settings | None = None):
